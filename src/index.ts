@@ -226,9 +226,11 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
             url: response.url,
           }, DEBUG_LAST_HTTP_RESPONSE)
         }
-        if (response && response.status === 429) {
-          debugLog(`🚨 [INTERCEPTOR PRIME] HTTP 429 DETECTED! Status: ${response.status}`)
+        if (response && (response.status === 429 || response.status === 401 || response.status === 403)) {
+          debugLog(`🚨 [INTERCEPTOR PRIME] HTTP ${response.status} DETECTED! Status: ${response.status}`)
           currentState = PluginState.ROTATING
+          // Treat 401/403 similar to 429 for rotation purposes so accounts are rotated
+          // when authentication/authorization errors are observed.
           rotateOnHttp429(manager, "interceptor-prime", options?.provider?.id || options?.model?.providerID)
           await forceRotateAndAbort("interceptor-prime", lastSessionID)
           currentState = PluginState.IDLE
@@ -267,8 +269,8 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
         const headers = (res as any)?.headers
         persistFetchLog({ kind: "response", url, status, ms: Date.now() - started })
         persistDebug("fetch.response", { url, status, headers: headers ? Object.fromEntries((headers as any).entries?.() ?? []) : undefined }, DEBUG_LAST_HTTP_RESPONSE)
-        if (status === 429) {
-          debugLog(`🚨 [FETCH PATCH] HTTP 429 DETECTED! URL=${url}`)
+        if (status === 429 || status === 401 || status === 403) {
+          debugLog(`🚨 [FETCH PATCH] HTTP ${status} DETECTED! URL=${url}`)
           currentState = PluginState.ROTATING
           rotateOnHttp429(manager, "fetch-429")
           await forceRotateAndAbort("fetch-429", lastSessionID)
