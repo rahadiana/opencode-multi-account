@@ -1,0 +1,27 @@
+{
+  "name": "opencode-multi-account",
+  "version": "1.0.0",
+  "description": "Plugin OpenCode untuk manajemen multi-akun API dengan rotasi otomatis saat rate limit tercapai",
+  "main": "src/index.ts",
+  "type": "module",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "multi-account",
+    "rate-limit",
+    "api-rotation"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run typecheck && tsx --test src/**/*.test.ts"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@opencode-ai/plugin": "latest",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.4.0"
+  }
+}

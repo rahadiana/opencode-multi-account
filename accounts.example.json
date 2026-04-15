@@ -1,0 +1,115 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "schemaVersion": 2,
+  "_comment": "Ini adalah contoh file konfigurasi akun untuk plugin Multi-Account Manager",
+  "_note": "Salin file ini ke: ~/.config/opencode/multi-account/accounts.json",
+
+  "accounts": [
+    {
+      "_comment": "=== CONTOH AKUN ANTHROPIC ===",
+      "id": "anthropic-primary",
+      "name": "Anthropic Utama",
+      "provider": "anthropic",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "ANTHROPIC_API_KEY": "sk-ant-GANTI_DENGAN_API_KEY_ANDA"
+        }
+      },
+      "priority": 1,
+      "cooldownMinutes": 60
+    },
+    {
+      "id": "anthropic-backup",
+      "name": "Anthropic Cadangan",
+      "provider": "anthropic",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "ANTHROPIC_API_KEY": "sk-ant-GANTI_DENGAN_API_KEY_CADANGAN"
+        }
+      },
+      "priority": 2,
+      "cooldownMinutes": 60
+    },
+
+    {
+      "_comment": "=== CONTOH AKUN OPENAI ===",
+      "id": "openai-primary",
+      "name": "OpenAI Utama",
+      "provider": "openai",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "OPENAI_API_KEY": "sk-GANTI_DENGAN_API_KEY_OPENAI"
+        }
+      },
+      "priority": 3,
+      "cooldownMinutes": 60
+    },
+
+    {
+      "_comment": "=== CONTOH AKUN GOOGLE GEMINI ===",
+      "id": "google-primary",
+      "name": "Google Gemini Utama",
+      "provider": "google",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "GOOGLE_GENERATIVE_AI_API_KEY": "GANTI_DENGAN_GOOGLE_API_KEY"
+        }
+      },
+      "priority": 4,
+      "cooldownMinutes": 60
+    },
+
+    {
+      "_comment": "=== CONTOH AKUN GROQ (GRATIS & CEPAT) ===",
+      "id": "groq-primary",
+      "name": "Groq Utama",
+      "provider": "groq",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "GROQ_API_KEY": "gsk_GANTI_DENGAN_GROQ_API_KEY"
+        }
+      },
+      "priority": 5,
+      "cooldownMinutes": 30
+    },
+
+    {
+      "_comment": "=== CONTOH AKUN DEEPSEEK ===",
+      "id": "deepseek-primary",
+      "name": "DeepSeek Utama",
+      "provider": "deepseek",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "DEEPSEEK_API_KEY": "GANTI_DENGAN_DEEPSEEK_API_KEY"
+        }
+      },
+      "priority": 6,
+      "cooldownMinutes": 60
+    },
+
+    {
+      "_comment": "=== CONTOH AKUN OPENROUTER (GATEWAY SEMUA MODEL) ===",
+      "id": "openrouter-primary",
+      "name": "OpenRouter - Multi Model",
+      "provider": "openrouter",
+      "credentials": {
+        "authType": "api_key",
+        "env": {
+          "OPENROUTER_API_KEY": "sk-or-v1-GANTI_DENGAN_OPENROUTER_API_KEY"
+        }
+      },
+      "priority": 7,
+      "cooldownMinutes": 60
+    }
+  ],
+
+  "rotationStrategy": "priority",
+  "autoSwitch": true,
+  "defaultCooldownMinutes": 60
+}
