@@ -21,6 +21,9 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
 
+    - name: Debug Workspace
+      run: ls -R /home/runner/work
+
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
