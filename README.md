@@ -1,19 +1,19 @@
 # 🔄 OpenCode Multi-Account Manager Plugin
 
-Plugin untuk [OpenCode](https://opencode.ai) yang mengelola beberapa akun API secara otomatis. Ketika satu akun mencapai rate limit, plugin akan **otomatis berpindah ke akun berikutnya** berdasarkan prioritas.
+A plugin for [OpenCode](https://opencode.ai) that automatically manages multiple API accounts. When one account hits its rate limit, the plugin will **automatically switch to the next account** based on priority.
 
-## ✨ Fitur
+## ✨ Features
 
-- **Rotasi Prioritas** — Akun diurutkan berdasarkan prioritas (P1 → P2 → P3 dst.)
-- **Auto-Switch per Provider** — Saat rate limit terdeteksi pada provider X, rotasi hanya di pool akun provider X
-- **Semua Provider** — Mendukung 35+ provider yang didukung OpenCode (Anthropic, OpenAI, Google, Groq, DeepSeek, OpenRouter, xAI, dll.)
-- **Notifikasi Provider Exhausted** — Memberitahu anda ketika **semua akun pada provider terkait telah habis**
+- **Priority Rotation** — Accounts are sorted by priority (P1 → P2 → P3, etc.)
+- **Provider-Level Auto-Switch** — When rate limit is detected for Provider X, rotation occurs only within Provider X's account pool.
+- **All Providers Supported** — Compatible with 35+ providers supported by OpenCode (Anthropic, OpenAI, Google, Groq, DeepSeek, OpenRouter, xAI, etc.)
+- **Provider Exhausted Notifications** — Alerts you when **all accounts for a provider are exhausted**.
 - **Custom Tools** — Kelola akun langsung dari TUI OpenCode
-- **Cooldown Tracking** — Akun yang rate-limited otomatis aktif kembali setelah cooldown
+- **Cooldown Tracking** — Accounts rate-limited automatically reactivate after cooldown.
 
 ## 📦 Instalasi
 
-### Prasyarat
+### Prerequisites
 - Node.js 18+ (disarankan versi terbaru LTS)
 - npm
 - Git
@@ -28,7 +28,7 @@ Plugin untuk [OpenCode](https://opencode.ai) yang mengelola beberapa akun API se
 | macOS | `~/.config/opencode/plugins/` | `~/.config/opencode/multi-account/` |
 | Windows (PowerShell) | `$env:USERPROFILE\.config\opencode\plugins\` | `$env:USERPROFILE\.config\multi-account\` |
 
-### Cara 1: Project-level (khusus project ini)
+### Method 1: Project-level (for this project only)
 
 ```bash
 # Linux/macOS (bash/zsh):
@@ -44,7 +44,7 @@ if not exist ".opencode\plugins" mkdir ".opencode\plugins"
 xcopy opencode_plugin ".opencode\plugins\multi-account" /E /I /Y
 ```
 
-Dengan prasyarat di atas, lanjutkan dengan langkah instalasi GitHub end-to-end berikut.
+With the prerequisites set, proceed with the following end-to-end GitHub installation steps.
 
 ```
 - Clone repository
@@ -55,7 +55,7 @@ Dengan prasyarat di atas, lanjutkan dengan langkah instalasi GitHub end-to-end b
 - Verifikasi bahwa artefak build menghasilkan dist/index.js
 ```
 
-### Cara 2: Global (semua project)
+### Method 2: Global (for all projects)
 
 ```bash
 # Salin seluruh folder ke global plugins
@@ -66,17 +66,17 @@ cp -r opencode_plugin ~/.config/opencode/plugins/multi-account
 xcopy opencode_plugin %USERPROFILE%\.config\opencode\plugins\multi-account /E /I
 ```
 
-### Cara 3: Via NPM (jika dipublish)
+### Method 3: Via NPM
 
-Tambahkan ke `opencode.json`:
+Once published, you can install the plugin into OpenCode by adding it to the `opencode.json` configuration file:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-multi-account"]
+  "plugin": ["@rahadiana/opencode-multi-account"]
 }
 ```
 
-### Verifikasi Instalasi (Wajib)
+### Installation Verification (Mandatory)
 - Verifikasi bahwa output build menghasilkan berkas dist/index.js. Jika tidak ada, jalankan ulang build.
 - Jalankan perintah berikut untuk verifikasi langkah-langkah dasar:
 - node -v (pastikan versi >= 18)
@@ -87,10 +87,10 @@ Tambahkan ke `opencode.json`:
 - Opsional: jalankan npm pack untuk memverifikasi struktur paket sebelum publish.
 
 ### Troubleshooting
-- Node.js versi tidak didukung: upgrade Node.js ke v18+.
+- Unsupported Node.js version: Upgrade Node.js to v18+.
 - Build gagal: jalankan `npm ci` lagi, periksa error TypeScript, pastikan environment memiliki TS compiler.
-- Plugin tidak terbaca di OpenCode: pastikan folder plugin berada di lokasi yang tepat (global atau project-level) dan konfigurasinya sudah benar.
-- Config akun tidak terbaca: pastikan file akun (mis. accounts.json) ada dan dapat dibaca oleh plugin, serta path konfigurasinya sudah sesuai.
+- Plugin not detected in OpenCode: Ensure the plugin folder is in the correct location (global or project-level) and properly configured.
+- Account configuration not read: Ensure the account file (e.g., accounts.json) exists, is readable by the plugin, and the path configuration is correct.
 
 ### Entrypoint Note
 - Entry point runtime dari plugin setelah build adalah dist/index.js. Periksa bahwa package.json mencerminkan path ini untuk publish (main: dist/index.js) agar paket npm berfungsi dengan benar.
