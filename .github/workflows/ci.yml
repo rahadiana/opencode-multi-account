@@ -86,10 +86,13 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Bump Version
-      run: npm version patch -m "chore: release v%s [skip ci]"
+      run: |
+        npm version patch -m "chore: release v%s [skip ci]"
 
     - name: Publish Package
-      run: npm publish --access public
+      run: |
+        npm publish --access public
 
     - name: Push Git Tag and Version
-      run: git push origin main --tags
+      run: |
+        git push origin main --tags
