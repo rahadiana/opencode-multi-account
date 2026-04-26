@@ -1,7 +1,7 @@
 {
   "name": "@rahadiana/opencode-multi-account",
   "version": "1.0.4",
-  "description": "Plugin OpenCode untuk manajemen multi-akun API dengan rotasi otomatis saat rate limit tercapai",
+  "description": "OpenCode plugin for managing multiple API accounts with automatic rotation when rate limits are reached.",
   "main": "dist/index.js",
   "type": "module",
   "keywords": [
@@ -18,6 +18,14 @@
     "test": "npm run typecheck && tsx --test \"src/**/*.test.ts\""
   },
   "author": "rahadiana nugraha <rahadiana@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rahadiana/opencode-multi-account.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rahadiana/opencode-multi-account/issues"
+  },
+  "homepage": "https://github.com/rahadiana/opencode-multi-account#readme",
   "license": "MIT",
   "devDependencies": {
     "@opencode-ai/plugin": "latest",
