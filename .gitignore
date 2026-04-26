@@ -10,3 +10,5 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+# Ignore npm package tarballs
+*.tgz
