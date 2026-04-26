@@ -55,11 +55,15 @@ jobs:
     name: Publish to npm
     needs: test-and-build
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -76,5 +80,16 @@ jobs:
     - name: Build Project
       run: npm run build
 
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Bump Version
+      run: npm version patch -m "chore: release v%s [skip ci]"
+
     - name: Publish Package
-      run: npm publish
+      run: npm publish --access public
+
+    - name: Push Git Tag and Version
+      run: git push origin main --tags
