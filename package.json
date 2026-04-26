@@ -28,9 +28,11 @@
   "homepage": "https://github.com/rahadiana/opencode-multi-account#readme",
   "license": "MIT",
   "devDependencies": {
-    "@opencode-ai/plugin": "latest",
     "@types/node": "^25.6.0",
     "tsx": "^4.20.6",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "latest"
   }
 }
