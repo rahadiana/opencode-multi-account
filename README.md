@@ -13,38 +13,31 @@ A plugin for [OpenCode](https://opencode.ai) that automatically manages multiple
 
 ## 🛠️ Installation
 
-### Prerequisites
-- Node.js 18+ (latest LTS recommended)
-- npm
-- Git
-- Ensure your environment has network access to download dependencies during installation.
+### Method 1: Via NPM (Recommended)
 
-### Plugin Folder Location per OS
+This plugin is officially published on npm. You can easily install it into OpenCode by adding it to your `opencode.json` configuration file:
 
-| OS | Global Plugin Location | Multi-Account Config Location |
-|----|-----------------------|-----------------------------|
-| Linux | `~/.config/opencode/plugins/` | `~/.config/opencode/multi-account/` |
-| macOS | `~/.config/opencode/plugins/` | `~/.config/opencode/multi-account/` |
-| Windows (PowerShell) | `$env:USERPROFILE\.config\opencode\plugins\` | `$env:USERPROFILE\.config\opencode\multi-account\` |
-
-### Method 1: Project-level (for this project only)
-
-```bash
-# Linux/macOS (bash/zsh):
-mkdir -p .opencode/plugins
-cp -r opencode_plugin .opencode/plugins/multi-account
-
-# Windows (PowerShell):
-New-Item -Path ".opencode/plugins" -ItemType Directory -Force
-Copy-Item opencode_plugin ".opencode/plugins/multi-account" -Recurse -Force
-
-# Windows (CMD):
-if not exist ".opencode\plugins" mkdir ".opencode\plugins"
-xcopy opencode_plugin ".opencode\plugins\multi-account" /E /I /Y
+```json
+{
+  "plugin": ["@rahadiana/opencode-multi-account"]
+}
 ```
 
-With the prerequisites set, proceed with the following end-to-end installation steps:
+### Method 2: Automatic AI Installation 🤖
 
+You can instruct your AI assistant (like OpenCode, Claude, or Cursor) to install and configure this plugin for you automatically. Just provide them with this prompt:
+
+> "Please install the OpenCode Multi-Account Manager plugin for me. You can read the instructions at `AI_PLUGIN_GUIDE.md` from this repository: https://github.com/rahadiana/opencode-multi-account"
+
+### Method 3: Manual Installation from Source (For Developers)
+
+If you are a developer wanting to test, modify, or contribute to this plugin, you can install it manually from the GitHub repository.
+
+#### Prerequisites
+- Node.js 18+ (latest LTS recommended)
+- npm & Git
+
+#### Developer Install (Linux/macOS)
 ```bash
 # Clone the repository
 git clone https://github.com/rahadiana/opencode-multi-account.git
@@ -52,51 +45,41 @@ cd opencode-multi-account
 
 # Install dependencies and build
 npm ci
-npm run typecheck
 npm run build
 
-# Verify that the build artifact generates dist/index.js
+# Copy to global plugins directory
+mkdir -p ~/.config/opencode/plugins
+cp -r . ~/.config/opencode/plugins/multi-account
 ```
 
-### Method 2: Global (for all projects)
+#### Developer Install (Windows PowerShell)
+```powershell
+# Clone the repository
+git clone https://github.com/rahadiana/opencode-multi-account.git
+cd opencode-multi-account
 
-```bash
-# Copy the entire folder to the global plugins directory
-# Linux/macOS:
-cp -r opencode-multi-account ~/.config/opencode/plugins/multi-account
+# Install dependencies and build
+npm ci
+npm run build
 
-# Windows:
-xcopy opencode-multi-account %USERPROFILE%\.config\opencode\plugins\multi-account /E /I
+# Copy to global plugins directory
+New-Item -Path "$env:USERPROFILE\.config\opencode\plugins" -ItemType Directory -Force
+Copy-Item . "$env:USERPROFILE\.config\opencode\plugins\multi-account" -Recurse -Force
 ```
 
-### Method 3: Via NPM
+### Multi-Account Configuration Location
 
-Once published, you can install the plugin into OpenCode by adding it to the `opencode.json` configuration file:
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@rahadiana/opencode-multi-account"]
-}
-```
+After installation, the plugin requires an `accounts.json` configuration file. Place it in the appropriate directory for your OS:
 
-### Installation Verification (Mandatory)
-- Verify that the build output generates the `dist/index.js` file. If missing, rerun the build.
-- Run the following commands to verify the basic steps:
-  - `node -v` (ensure version >= 18)
-  - `npm ci`
-  - `npm run typecheck`
-  - `npm run build`
-- Check that `dist/index.js` exists and can be loaded by the OpenCode plugin system.
-- Optional: run `npm pack` to verify the package structure before publishing.
+| OS | Config Directory |
+|----|------------------|
+| Linux / macOS | `~/.config/opencode/multi-account/` |
+| Windows | `$env:USERPROFILE\.config\opencode\multi-account\` |
 
 ### Troubleshooting
-- **Unsupported Node.js version**: Upgrade Node.js to v18+.
-- **Build failed**: Run `npm ci` again, check for TypeScript errors, and ensure the environment has the TS compiler.
-- **Plugin not detected in OpenCode**: Ensure the plugin folder is in the correct location (global or project-level) and properly configured.
-- **Account configuration not read**: Ensure the account file (e.g., `accounts.json`) exists, is readable by the plugin, and the path configuration is correct.
-
-### Entrypoint Note
-- The runtime entry point of the plugin after building is `dist/index.js`. Verify that `package.json` reflects this path for publishing (`main: dist/index.js`) so the npm package functions correctly.
+- **Plugin not detected in OpenCode**: Ensure you've added it to `opencode.json` properly (if using npm) or that the folder is copied correctly (if installing from source).
+- **Build failed (Source Install)**: Run `npm ci` again, check for TypeScript errors, and ensure Node 18+ is installed.
+- **Account configuration not read**: Ensure `accounts.json` exists in the exact config directory mentioned above and contains valid JSON.
 
 ### Generator accounts.example.json
 Use the following script to create or update `accounts.example.json`:
