@@ -1,0 +1,13 @@
+{
+  "accounts": [
+    {
+      "provider": "OPENAI",
+      "token": "REDACTED"
+    },
+    {
+      "provider": "ANTHROPIC",
+      "token": "REDACTED"
+    }
+  ],
+  "default_provider": "OPENAI"
+}

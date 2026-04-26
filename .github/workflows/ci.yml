@@ -1,0 +1,68 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Run TypeScript Check
+      run: npm run typecheck
+
+    - name: Run Tests
+      run: npm test
+
+    - name: Build Project
+      run: npm run build
+
+    - name: Verify Package
+      run: npm pack
+
+  publish:
+    name: Publish to npm
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        registry-url: 'https://registry.npmjs.org/'
+
+    - name: Authenticate with npm
+      run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build Project
+      run: npm run build
+
+    - name: Publish Package
+      run: npm publish

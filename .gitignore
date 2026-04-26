@@ -1,0 +1,12 @@
+# accounts.json dan state.json mengandung API key sensitif
+accounts.json
+state.json
+*.json.bak
+
+# Dependencies
+node_modules/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db

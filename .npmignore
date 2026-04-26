@@ -1,0 +1,11 @@
+# Ignore files for npm package
+
+# GitHub workflows and automation files
+.github/
+# Development and Sisyphus tracking files
+.sisyphus/
+# Local test tarball
+rahadiana-opencode-multi-account-*.tgz
+# Node modules and logs
+node_modules/
+npm-debug.log*
