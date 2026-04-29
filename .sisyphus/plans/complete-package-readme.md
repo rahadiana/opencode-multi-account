@@ -54,24 +54,24 @@ Wave 3: Validate updates (npm compliance).
 
 ## TODOs
 ### Wave 1: Finalize README Documentation Updates
-- [ ] **Add troubleshooting steps:**
+- [x] **Add troubleshooting steps:**
   - Common error scenarios for users (build failure/missing dependencies).
   - Diagnostic commands for troubleshooting.
-- [ ] **Sync new `prepublishOnly` step:**
+- [x] **Sync new `prepublishOnly` step:**
   - Reference build automation added to `package.json`.
 
 ### Wave 2: Update `package.json`
-- [ ] **Update `main` field to `dist/index.js`:**
+- [x] **Update `main` field to `dist/index.js`:**
   - Modify the `package.json` `main` field to reflect the correct path.
-- [ ] **Add `prepublishOnly` script:**
+- [x] **Add `prepublishOnly` script:**
   - Automate build process prior to publishing (`npm run build`).
-- [ ] **Scope `name`:**
+- [x] **Scope `name`:**
   - Update `name` to `@rahadiana/opencode-multi-account`.
 
 ### Wave 3: Verification Tasks
-- [ ] **Verify `package.json` structure meets npm requirements:**
+- [x] **Verify `package.json` structure meets npm requirements:**
   - Use `npm pack` to test package file layouts.
-- [ ] **Integrate README with post-update validation:**
+- [x] **Integrate README with post-update validation:**
   - Ensure steps work correctly with the package.
 
 ## Commit Strategy
@@ -79,6 +79,6 @@ Wave 3: Validate updates (npm compliance).
 - Message example: `docs(README): Add troubleshooting and improve installation instructions`.
 
 ## Final Verification
-- [ ] F1. Documentation compliance — aligned sections.
-- [ ] F2. Packaging compliance — Run `npm pack` verification.
-- [ ] F3. Scope Fidelity Check — Ensure no unintended scope changes in `package.json`.
+- [x] F1. Documentation compliance — aligned sections.
+- [x] F2. Packaging compliance — Run `npm pack` verification.
+- [x] F3. Scope Fidelity Check — Ensure no unintended scope changes in `package.json`.

@@ -37,6 +37,17 @@ const RATE_LIMIT_PATTERNS = [
   /tokens per minute/i,
   /requests per minute/i,
   /ratelimit/i,
+  // Ollama-specific patterns
+  /no slot available/i,
+  /connection refused/i,
+  /econnrefused/i,
+  /etimedout/i,
+  /context cancelled/i,
+  /model is loading/i,
+  /queue full/i,
+  /concurrent request limit/i,
+  /max connections/i,
+  /server busy/i,
 ]
 
 function toLower(value: unknown): string {

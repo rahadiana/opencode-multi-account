@@ -114,7 +114,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 > Implementation + Test = ONE task. Never separate.
 > EVERY task MUST have: Agent Profile + Parallelization + QA Scenarios.
 
-- [ ] 1. Audit baseline README install scope
+- [x] 1. Audit baseline README install scope
 
   **What to do**: Tandai batas section instalasi saat ini dan tentukan blok yang diganti/ditambah tanpa menyentuh section konfigurasi akun.
   **Must NOT do**: Mengubah isi teknis konfigurasi akun.
@@ -151,7 +151,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): n/a` | Files: [README.md]
 
-- [ ] 2. Tambahkan Prasyarat + Install GitHub end-to-end
+- [x] 2. Tambahkan Prasyarat + Install GitHub end-to-end
 
   **What to do**: Sisipkan subsection `Prasyarat` dan `Cara 1: Install dari GitHub (Direkomendasikan)` dengan command final: clone, masuk folder repo, `npm ci`, `npm run typecheck`, `npm run build`.
   **Must NOT do**: Menambahkan command yang tidak ada padanan script/tooling di repo.
@@ -190,7 +190,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): clarify github install flow` | Files: [README.md]
 
-- [ ] 3. Tambahkan Verifikasi Instalasi (Wajib)
+- [x] 3. Tambahkan Verifikasi Instalasi (Wajib)
 
   **What to do**: Tambahkan subsection verifikasi pasca install dengan langkah deterministik (startup tanpa error, tool `account_status` dapat dipanggil, config terbaca).
   **Must NOT do**: Menulis verifikasi yang membutuhkan interpretasi subjektif.
@@ -227,7 +227,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): add post-install verification` | Files: [README.md]
 
-- [ ] 4. Tambahkan Troubleshooting + Entrypoint Note
+- [x] 4. Tambahkan Troubleshooting + Entrypoint Note
 
   **What to do**: Tambahkan troubleshooting minimal 4 kasus: Node versi, build gagal, plugin tidak terbaca, config akun tidak terbaca. Tambahkan catatan bahwa dokumentasi instalasi memakai alur build aman terkait perbedaan `main` dan artefak `dist`.
   **Must NOT do**: Mengubah `package.json` atau mengklaim perilaku runtime yang tidak didukung repo.
@@ -265,7 +265,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): add troubleshooting and entrypoint note` | Files: [README.md]
 
-- [ ] 5. Sinkronkan command README dengan script package
+- [x] 5. Sinkronkan command README dengan script package
 
   **What to do**: Cocokkan command di README terhadap script yang tersedia di `package.json`, pastikan tidak ada perintah non-eksisten.
   **Must NOT do**: Menambah script baru pada package.json.
@@ -302,7 +302,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): align commands with package scripts` | Files: [README.md]
 
-- [ ] 6. Validasi heading dan keyword wajib otomatis
+- [x] 6. Validasi heading dan keyword wajib otomatis
 
   **What to do**: Jalankan cek otomatis untuk heading wajib dan keyword minimum (Node v18+, command utama, `account_status`).
   **Must NOT do**: Menutup task jika ada heading/keyword wajib yang hilang.
@@ -338,7 +338,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): validate required headings and keywords` | Files: [README.md]
 
-- [ ] 7. Polishing redaksi tanpa ubah makna teknis
+- [x] 7. Polishing redaksi tanpa ubah makna teknis
 
   **What to do**: Rapikan konsistensi istilah, ejaan, dan format markdown agar section baru selaras dengan gaya README existing.
   **Must NOT do**: Mengubah requirement teknis yang telah disepakati.
@@ -375,7 +375,7 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 
   **Commit**: NO | Message: `docs(readme): polish wording consistency` | Files: [README.md]
 
-- [ ] 8. Siapkan ringkasan perubahan untuk user
+- [x] 8. Siapkan ringkasan perubahan untuk user
 
   **What to do**: Buat ringkasan akhir yang menyebut apa yang ditambah/diubah di README, risiko yang diturunkan, dan instruksi validasi cepat.
   **Must NOT do**: Menyatakan hasil verifikasi lulus jika evidence belum lengkap.
@@ -416,10 +416,10 @@ Wave 2: integrasi & validasi akhir (Tasks 5-8)
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 > **Do NOT auto-proceed after verification. Wait for user's explicit approval before marking work complete.**
 > **Never mark F1-F4 as checked before getting user's okay.** Rejection or user feedback -> fix -> re-run -> present again -> wait for okay.
-- [ ] F1. Plan Compliance Audit — oracle
-- [ ] F2. Code Quality Review — unspecified-high
-- [ ] F3. Real Manual QA — unspecified-high (+ playwright if UI)
-- [ ] F4. Scope Fidelity Check — deep
+- [x] F1. Plan Compliance Audit — oracle
+- [x] F2. Code Quality Review — unspecified-high
+- [x] F3. Real Manual QA — unspecified-high (+ playwright if UI)
+- [x] F4. Scope Fidelity Check — deep
 
 ## Commit Strategy
 - Satu commit dokumentasi setelah seluruh QA lulus:

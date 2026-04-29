@@ -1,0 +1,23 @@
+{
+  "active_plan": "C:\\Users\\user\\Documents\\GitHub\\opencode_plugin\\.sisyphus\\plans\\session-scoped-account-map.md",
+  "started_at": "2026-04-28T17:19:00.028Z",
+  "session_ids": [
+    "ses_22b190c4effe0ou7h2p0nbbutA"
+  ],
+  "plan_name": "session-scoped-account-map",
+  "session_origins": {
+    "ses_22b190c4effe0ou7h2p0nbbutA": "direct"
+  },
+  "task_sessions": {
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_228e1b565ffe4VVO1tSMK3R1ka",
+      "agent": "Sisyphus-Junior",
+      "category": "ultrabrain",
+      "updated_at": "2026-04-29T02:43:26.795Z"
+    }
+  },
+  "agent": "atlas"
+}

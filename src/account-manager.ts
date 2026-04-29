@@ -25,6 +25,7 @@ import { buildAuthJsonEntry } from "./auth-json.js"
 export class AccountManager {
   // In-memory provider-scoped pools derived from config/accounts
   private providerPools: Record<string, Account[]> = {}
+  private sessionAccounts = new Map<string, string>()
   private config: PluginConfig = createDefaultConfig()
   private state: RuntimeState = {
     currentAccountId: null,
@@ -361,6 +362,30 @@ export class AccountManager {
     return this.state.currentAccountId
   }
 
+  getOrAssignAccountForSession(sessionId: string, providerScope?: string): Account | null {
+    const mappedAccountId = this.sessionAccounts.get(sessionId)
+    if (mappedAccountId) {
+      const mappedAccount = this._findAccountById(mappedAccountId)
+      if (mappedAccount && (!providerScope || mappedAccount.provider === providerScope)) return mappedAccount
+      this.sessionAccounts.delete(sessionId)
+    }
+
+    const current = this.getCurrentAccount()
+    const fallback = providerScope
+      ? current?.provider === providerScope
+        ? current
+        : this.getNextAvailableAccount(undefined, providerScope)
+      : current ?? this.getNextAvailableAccount()
+    if (!fallback) return null
+
+    this.sessionAccounts.set(sessionId, fallback.id)
+    return fallback
+  }
+
+  clearSession(sessionId: string): void {
+    this.sessionAccounts.delete(sessionId)
+  }
+
   /** Ambil akun berikutnya yang tidak sedang rate-limited */
   getNextAvailableAccount(excludeId?: string, providerScope?: string): Account | null {
     if (providerScope) {
@@ -396,7 +421,7 @@ export class AccountManager {
    * Tandai akun sebagai rate-limited dan switch ke akun berikutnya.
    * Return { switched: boolean, nextAccount: Account | null, allExhausted: boolean }
    */
-  handleRateLimit(accountId: string): {
+  handleRateLimit(accountId: string, sessionId?: string): {
     switched: boolean
     nextAccount: Account | null
     allExhausted: boolean
@@ -420,12 +445,25 @@ export class AccountManager {
     }
 
     const providerScope = account?.provider
+    // DEBUG: Log provider scope and pool status
+    console.log(`[DEBUG handleRateLimit] accountId=${accountId}, providerScope=${providerScope}`)
+    if (providerScope) {
+      const pool = this.providerPools[providerScope] ?? []
+      console.log(`[DEBUG handleRateLimit] Pool for ${providerScope}: ${pool.length} accounts`)
+      for (const acc of pool) {
+        const state = this.state.accountStates[acc.id]
+        console.log(`[DEBUG handleRateLimit]   - ${acc.id}: state=${state?.status}, rateLimited=${state?.rateLimitUntil}`)
+      }
+    }
     const next = providerScope
       ? this.getNextAvailableAccount(accountId, providerScope)
       : this.getNextAvailableAccount(accountId)
 
     if (next) {
       this.state.currentAccountId = next.id
+      if (sessionId) {
+        this.sessionAccounts.set(sessionId, next.id)
+      }
       this.state.accountStates[next.id] = {
         status: "active",
       }
@@ -444,6 +482,9 @@ export class AccountManager {
     } else {
       // Semua akun habis
       this.state.currentAccountId = null
+      if (sessionId) {
+        this.sessionAccounts.delete(sessionId)
+      }
       saveState(this.state)
       this._syncAccountMarkersToConfig()
       return { switched: false, nextAccount: null, allExhausted: true }
@@ -451,7 +492,7 @@ export class AccountManager {
   }
 
   /** Switch manual ke akun berdasarkan ID */
-  switchToAccount(accountId: string): {
+  switchToAccount(accountId: string, sessionId?: string): {
     account: Account | null
     reason?: "not_found" | "disabled" | "rate_limited" | "invalid"
   } {
@@ -475,6 +516,9 @@ export class AccountManager {
     }
 
     this.state.currentAccountId = accountId
+    if (sessionId) {
+      this.sessionAccounts.set(sessionId, accountId)
+    }
     this.state.accountStates[accountId] = { status: "active" }
     const preferred = account.rawEntry ?? buildAuthJsonEntry(account)
     if (preferred) {
@@ -508,6 +552,14 @@ export class AccountManager {
 
   /** Hapus akun berdasarkan ID (providerAccounts supported in next phase) */
   removeAccount(accountId: string): { success: boolean; message: string } {
+    const clearRemovedSessionMappings = () => {
+      for (const [sessionId, mappedAccountId] of this.sessionAccounts.entries()) {
+        if (mappedAccountId === accountId) {
+          this.sessionAccounts.delete(sessionId)
+        }
+      }
+    }
+
     const scoped = this._parseProviderScopedId(accountId)
     if (scoped && this.config.providerAccounts?.[scoped.provider]) {
       const list = normalizeAuthProviderEntries(this.config.providerAccounts[scoped.provider])
@@ -521,6 +573,7 @@ export class AccountManager {
           this.config.providerAccounts = undefined
         }
         delete this.state.accountStates[accountId]
+        clearRemovedSessionMappings()
         if (this.state.currentAccountId === accountId) {
           this.state.currentAccountId = null
         }
@@ -537,6 +590,7 @@ export class AccountManager {
     if (idx !== -1) {
       const removed = this.config.accounts.splice(idx, 1)[0]
       delete this.state.accountStates[accountId]
+      clearRemovedSessionMappings()
       if (this.state.currentAccountId === accountId) {
         this.state.currentAccountId = null
         this._ensureCurrentAccount()

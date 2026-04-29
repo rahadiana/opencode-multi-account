@@ -48,20 +48,40 @@ function writeAuthAndEnv(account: any) {
   } catch {}
 }
 
-function rotateOnHttp429(manager: AccountManager, source: string, providerHint?: string) {
+function rotateOnHttp429(manager: AccountManager, source: string, providerHint?: string, sessionID?: string | null) {
   manager.reload()
-  const current = manager.getCurrentAccount()
+  // Jika tidak ada sessionID dan tidak ada current account, gunakan providerHint untuk mendapatkan akun
+  let current = sessionID
+    ? manager.getOrAssignAccountForSession(sessionID)
+    : manager.getCurrentAccount()
+  
+  // FIX: Jika current null tapi ada providerHint, gunakan providerHint untuk mendapatkan akun
+  if (!current && providerHint) {
+    current = manager.getNextAvailableAccount(undefined, providerHint)
+    debugLog(`[rotateOnHttp429] Using providerHint fallback: ${providerHint} -> ${current?.id ?? 'none'}`)
+  }
+  
   const provider = providerHint || current?.provider
   if (!current) return false
 
-  const result = manager.handleRateLimit(current.id)
-  const target = result.nextAccount ?? manager.getCurrentAccount()
+const result = manager.handleRateLimit(current.id, sessionID ?? undefined)
+  const target = result.nextAccount ?? (sessionID
+    ? manager.getOrAssignAccountForSession(sessionID)
+    : manager.getCurrentAccount())
   if (target) {
     writeAuthAndEnv(target)
     debugLog(`🚨 [HTTP429] ${source}: rotate ${current.id} -> ${target.id} (provider=${provider})`)
     return true
+  } else {
+    // Debug: log why rotation failed
+    debugLog(`🚨 [HTTP429] ${source}: rotation FAILED for ${current.id} (provider=${provider}) - no next account found`)
+    // Log provider pool status for debugging
+    if (current?.provider) {
+      const poolDescription = manager.describeProviderPool(current.provider, current.id)
+      debugLog(`🚨 [HTTP429] Pool status for ${current.provider}: ${poolDescription}`)
+    }
+    return false
   }
-  return false
 }
 
 function persistDebug(label: string, payload: unknown, target: string) {
@@ -161,10 +181,91 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
     STREAMING = "STREAMING",
     ROTATING = "ROTATING"
   }
-  
-  let currentState: PluginState = PluginState.IDLE
-  let lastActivity = Date.now()
-  let lastSessionID: string | null = null
+
+  type SessionRuntimeState = {
+    state: PluginState
+    lastActivity: number
+  }
+
+  const sessionStates = new Map<string, SessionRuntimeState>()
+  let defaultPluginState: PluginState = PluginState.IDLE
+  let defaultLastActivity = Date.now()
+
+  const getSessionState = (sessionID: string): SessionRuntimeState => {
+    const existing = sessionStates.get(sessionID)
+    if (existing) return existing
+
+    const initialState = {
+      state: PluginState.IDLE,
+      lastActivity: Date.now(),
+    }
+    sessionStates.set(sessionID, initialState)
+    return initialState
+  }
+
+  const setSessionState = (sessionID: string, state: PluginState, activityTime: number = Date.now()) => {
+    const nextState = getSessionState(sessionID)
+    nextState.state = state
+    nextState.lastActivity = activityTime
+    return nextState
+  }
+
+  const touchSessionActivity = (sessionID: string, activityTime: number = Date.now()) => {
+    const nextState = getSessionState(sessionID)
+    nextState.lastActivity = activityTime
+    return nextState
+  }
+
+  const setDefaultState = (state: PluginState, activityTime: number = Date.now()) => {
+    defaultPluginState = state
+    defaultLastActivity = activityTime
+  }
+
+  const touchDefaultActivity = (activityTime: number = Date.now()) => {
+    defaultLastActivity = activityTime
+  }
+
+  const getSessionIdFromRequestOptions = (options: any): string | null => {
+    return options?.path?.id || options?.path?.sessionID || null
+  }
+
+  const getEventSessionID = (payload: any): string | null => {
+    return payload?.properties?.sessionID || payload?.sessionID || null
+  }
+
+  const getProviderHint = (payload: any): string | undefined => {
+    return payload?.properties?.model?.providerID ||
+      payload?.properties?.provider?.id ||
+      payload?.model?.providerID ||
+      payload?.provider?.id ||
+      undefined
+  }
+
+  const getManagedAccount = (sessionID?: string | null, requestedProvider?: string) => {
+    manager.reload()
+
+    let account = sessionID
+      ? manager.getOrAssignAccountForSession(sessionID, requestedProvider)
+      : manager.getCurrentAccount()
+
+    if (requestedProvider && account?.provider !== requestedProvider) {
+      const candidate = manager.getNextAvailableAccount(undefined, requestedProvider)
+      if (candidate) {
+        manager.switchToAccount(candidate.id, sessionID ?? undefined)
+        account = candidate
+      }
+    }
+
+    if (account) {
+      const accState = manager.getState().accountStates[account.id]
+      if (accState?.status === "rate_limited" && accState.rateLimitUntil && isAccountRateLimited(account, accState.rateLimitUntil)) {
+        const rotated = manager.handleRateLimit(account.id, sessionID ?? undefined).nextAccount
+        if (rotated) account = rotated
+      }
+    }
+
+    return account
+  }
 
   // ─── HARD RESET HELPER (The "Brutal" Fix) ────────────────
   const forceRotateAndAbort = async (source: string, sessionID: string | null) => {
@@ -192,9 +293,14 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
     }
     
     await log("warn", `🚨 Peluncur Otomatis (${source}): Sesi dimutus, akun aktif: ${current?.name ?? "none"}.`, {
-      currentAccount: current?.id
+      currentAccount: current?.id,
+      defaultLastActivityAgeMs: sessionID ? undefined : Date.now() - defaultLastActivity,
     })
-    lastActivity = Date.now()
+    if (sessionID) {
+      setSessionState(sessionID, PluginState.IDLE)
+    } else {
+      setDefaultState(PluginState.IDLE)
+    }
   }
 
   // ─── INTERCEPTOR PRIME (The God-Mode Patch) ──────────────
@@ -205,12 +311,18 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
     const originalRequest = coreClient.request.bind(coreClient)
     
     coreClient.request = async (options: any) => {
+      const sessionID = getSessionIdFromRequestOptions(options)
+
       // 💓 THE PULSE (Start)
-      currentState = PluginState.STREAMING
-      lastActivity = Date.now()
-      
-      const sessionID = options.path?.id || options.path?.sessionID || lastSessionID
-      if (sessionID) lastSessionID = sessionID
+      if (sessionID) {
+        setSessionState(sessionID, PluginState.STREAMING)
+        manager.getOrAssignAccountForSession(
+          sessionID,
+          options?.provider?.id || options?.model?.providerID,
+        )
+      } else {
+        setDefaultState(PluginState.STREAMING)
+      }
       
       try {
         const result = await originalRequest(options)
@@ -227,12 +339,15 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
         }
         if (response && (response.status === 429 || response.status === 401 || response.status === 403)) {
           debugLog(`🚨 [INTERCEPTOR PRIME] HTTP ${response.status} DETECTED! Status: ${response.status}`)
-          currentState = PluginState.ROTATING
+          if (sessionID) {
+            setSessionState(sessionID, PluginState.ROTATING)
+          } else {
+            setDefaultState(PluginState.ROTATING)
+          }
           // Treat 401/403 similar to 429 for rotation purposes so accounts are rotated
           // when authentication/authorization errors are observed.
-          rotateOnHttp429(manager, "interceptor-prime", options?.provider?.id || options?.model?.providerID)
-          await forceRotateAndAbort("interceptor-prime", lastSessionID)
-          currentState = PluginState.IDLE
+          rotateOnHttp429(manager, "interceptor-prime", options?.provider?.id || options?.model?.providerID, sessionID)
+          await forceRotateAndAbort("interceptor-prime", sessionID)
         }
         
         return result
@@ -242,10 +357,13 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
         const errMsg = extractEventMessage(error)
         if (isRateLimitError(error) || isRateLimitError(errMsg)) {
           debugLog(`🚨 [INTERCEPTOR PRIME] RATE LIMIT ERROR DETECTED!`)
-          currentState = PluginState.ROTATING
-          rotateOnHttp429(manager, "interceptor-prime-error", options?.provider?.id || options?.model?.providerID)
-          await forceRotateAndAbort("interceptor-prime-error", lastSessionID)
-          currentState = PluginState.IDLE
+          if (sessionID) {
+            setSessionState(sessionID, PluginState.ROTATING)
+          } else {
+            setDefaultState(PluginState.ROTATING)
+          }
+          rotateOnHttp429(manager, "interceptor-prime-error", options?.provider?.id || options?.model?.providerID, sessionID)
+          await forceRotateAndAbort("interceptor-prime-error", sessionID)
         }
         throw error
       }
@@ -270,10 +388,9 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
         persistDebug("fetch.response", { url, status, headers: headers ? Object.fromEntries((headers as any).entries?.() ?? []) : undefined }, DEBUG_LAST_HTTP_RESPONSE)
         if (status === 429 || status === 401 || status === 403) {
           debugLog(`🚨 [FETCH PATCH] HTTP ${status} DETECTED! URL=${url}`)
-          currentState = PluginState.ROTATING
+          setDefaultState(PluginState.ROTATING)
           rotateOnHttp429(manager, "fetch-429")
-          await forceRotateAndAbort("fetch-429", lastSessionID)
-          currentState = PluginState.IDLE
+          await forceRotateAndAbort("fetch-429", null)
         }
         return res
       } catch (error: any) {
@@ -285,10 +402,9 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
         const errMsg = extractEventMessage(error)
         if (isRateLimitError(error) || isRateLimitError(errMsg)) {
           debugLog(`🚨 [FETCH PATCH] Rate limit detected from fetch error`)
-          currentState = PluginState.ROTATING
+          setDefaultState(PluginState.ROTATING)
           rotateOnHttp429(manager, "fetch-error")
-          await forceRotateAndAbort("fetch-error", lastSessionID)
-          currentState = PluginState.IDLE
+          await forceRotateAndAbort("fetch-error", null)
         }
         throw error
       }
@@ -297,24 +413,26 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
 
   // ─── STATE-AWARE WATCHDOG (Detect Silent Stalls) ─────────
   setInterval(async () => {
-    if (currentState !== PluginState.STREAMING) return
-    
     const now = Date.now()
-    const diff = now - lastActivity
-    
-    // 1. Silent Failure detection (8s threshold)
-    if (diff > 8000 && currentState === PluginState.STREAMING) {
-      debugLog(`⚠️ [WATCHDOG] STREAM STALL! (State: ${currentState}, Stalled for ${Math.round(diff/1000)}s)`)
-      currentState = PluginState.ROTATING
-      rotateOnHttp429(manager, "watchdog-stall")
-      await forceRotateAndAbort("watchdog-stall", lastSessionID)
-      currentState = PluginState.IDLE
-    }
-    
-    // 2. Safety Fallback (60s threshold) - prevent getting stuck in STREAMING
-    if (diff > 60000) {
-      debugLog(`🏥 [SAFETY] Resetting stuck STREAMING state to IDLE`)
-      currentState = PluginState.IDLE
+    for (const [sessionID, runtimeState] of sessionStates.entries()) {
+      if (runtimeState.state !== PluginState.STREAMING) continue
+
+      const diff = now - runtimeState.lastActivity
+
+      // 1. Silent Failure detection (8s threshold)
+      if (diff > 8000 && runtimeState.state === PluginState.STREAMING) {
+        debugLog(`⚠️ [WATCHDOG] STREAM STALL! (State: ${runtimeState.state}, Session: ${sessionID}, Stalled for ${Math.round(diff/1000)}s)`)
+        setSessionState(sessionID, PluginState.ROTATING, now)
+        rotateOnHttp429(manager, "watchdog-stall", undefined, sessionID)
+        await forceRotateAndAbort("watchdog-stall", sessionID)
+        continue
+      }
+
+      // 2. Safety Fallback (60s threshold) - prevent getting stuck in STREAMING
+      if (diff > 60000) {
+        debugLog(`🏥 [SAFETY] Resetting stuck STREAMING state to IDLE for session ${sessionID}`)
+        setSessionState(sessionID, PluginState.IDLE, now)
+      }
     }
   }, 3000)
 
@@ -373,7 +491,7 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
   }
 
   // ─── Proactive Error Handler (The Rescuer) ─────────────
-  const onPossibleError = async (payload: any, source: string) => {
+  const onPossibleError = async (payload: any, source: string, sessionID?: string | null) => {
     // 🕵️ Analisis Teks Stream (Claude Insight)
     let extraText: string | undefined
     if (payload?.type === "message.part.updated") {
@@ -393,19 +511,18 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
       if (extraText && isRateLimitError(extraText)) {
         debugLog(`🎯 [DEEP PARSE] Pesan retry ditemukan di stream: "${extraText.substring(0, 50)}..."`)
       }
-      currentState = PluginState.ROTATING
-      const providerHint =
-        payload?.properties?.model?.providerID ||
-        payload?.properties?.provider?.id ||
-        payload?.model?.providerID ||
-        payload?.provider?.id
-      const rotated = rotateOnHttp429(manager, `event-${source}`, providerHint)
+      if (sessionID) {
+        setSessionState(sessionID, PluginState.ROTATING)
+      } else {
+        setDefaultState(PluginState.ROTATING)
+      }
+      const providerHint = getProviderHint(payload)
+      const rotated = rotateOnHttp429(manager, `event-${source}`, providerHint, sessionID ?? null)
       if (rotated) {
-        await forceRotateAndAbort(source, lastSessionID)
+        await forceRotateAndAbort(source, sessionID ?? null)
       } else {
         debugLog(`⚠️ [EVENT] ${source}: rate-limit detected but no account rotation occurred`)
       }
-      currentState = PluginState.IDLE
     }
   }
 
@@ -413,129 +530,108 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
       // ─── Inject API key aktif ke shell environment ──────────
       "shell.env": async (input, output) => {
         try {
-          persistHookInvoke("shell.env", { sessionID: (input as any)?.sessionID })
+          const sessionID = (input as any)?.sessionID
+          persistHookInvoke("shell.env", { sessionID })
           if (!output.env) output.env = {}
-        if (input.sessionID) lastSessionID = input.sessionID
-        currentState = PluginState.STREAMING // Mulai monitoring
-        lastActivity = Date.now()
-        manager.reload()
-        const requestedProvider = (input as any)?.model?.providerID || (input as any)?.provider?.id
-        let account = manager.getCurrentAccount()
-        
-        if (requestedProvider && account?.provider !== requestedProvider) {
-           const candidate = manager.getNextAvailableAccount(undefined, requestedProvider)
-           if (candidate) {
-               manager.switchToAccount(candidate.id)
-               account = candidate
-           }
-        }
-
-        // Skip akun yang sudah ditandai rate-limited di state
-        if (account) {
-          const accState = manager.getState().accountStates[account.id]
-          if (accState?.status === "rate_limited" && accState.rateLimitUntil && isAccountRateLimited(account, accState.rateLimitUntil)) {
-            const rotated = manager.handleRateLimit(account.id).nextAccount
-            if (rotated) account = rotated
+          if (sessionID) {
+            setSessionState(sessionID, PluginState.STREAMING)
+          } else {
+            setDefaultState(PluginState.STREAMING)
           }
-        }
+          const requestedProvider = (input as any)?.model?.providerID || (input as any)?.provider?.id
+          const account = getManagedAccount(sessionID, requestedProvider)
 
-        if (account) {
-          const authEntry = account.rawEntry ?? buildAuthJsonEntry(account)
-          if (authEntry) { try { overwriteAuthJsonProvider(account.provider, authEntry) } catch {} }
+          if (account) {
+            const authEntry = account.rawEntry ?? buildAuthJsonEntry(account)
+            if (authEntry) { try { overwriteAuthJsonProvider(account.provider, authEntry) } catch {} }
 
-          const env = resolveAccountEnv(account)
-          for (const [key, value] of Object.entries(env)) {
-            output.env[key] = value
-            process.env[key] = value // HOT PATCH
+            const env = resolveAccountEnv(account)
+            for (const [key, value] of Object.entries(env)) {
+              output.env[key] = value
+              process.env[key] = value // HOT PATCH
+            }
           }
-        }
-      } catch (err) {}
-    },
+        } catch (err) {}
+      },
 
       // ─── Inject Authentication ke HTTP Header (Full Provider Support) ──
       "chat.headers": async (input: any, output: any) => {
         try {
-          persistHookInvoke("chat.headers", { sessionID: (input as any)?.sessionID })
+          const sessionID = (input as any)?.sessionID
+          persistHookInvoke("chat.headers", { sessionID })
           if (!output.headers) output.headers = {}
-        if (input.sessionID) lastSessionID = input.sessionID
-        currentState = PluginState.STREAMING // Mulai monitoring
-        lastActivity = Date.now()
-        manager.reload()
-        
-        const requestedProvider = (input as any)?.model?.providerID || (input as any)?.provider?.id
-        let account = manager.getCurrentAccount()
-        
-        if (requestedProvider && account?.provider !== requestedProvider) {
-           const candidate = manager.getNextAvailableAccount(undefined, requestedProvider)
-           if (candidate) {
-               manager.switchToAccount(candidate.id)
-               account = candidate
-           }
-        }
-
-        if (!account) return
-
-        // Skip akun yang sudah ditandai rate-limited di state
-        {
-          const accState = manager.getState().accountStates[account.id]
-          if (accState?.status === "rate_limited" && accState.rateLimitUntil && isAccountRateLimited(account, accState.rateLimitUntil)) {
-            const rotated = manager.handleRateLimit(account.id).nextAccount
-            if (rotated) account = rotated
-          }
-        }
-
-        // 🚨 AGGRESSIVE AUTOPILOT (Retry loop detection)
-        const rescued = manager.trackRequestAndFix(requestedProvider || account.provider, account.id)
-        if (rescued && rescued.id !== account.id) {
-           await log("info", `🔄 Autopilot: Deteksi retry loop, memutar kunci ke ${rescued.name}`)
-           account = rescued
-        }
-
-        const env = resolveAccountEnv(account)
-        const prov = account.provider.toLowerCase()
-
-        const authEntry = account.rawEntry ?? buildAuthJsonEntry(account)
-        if (authEntry) { try { overwriteAuthJsonProvider(account.provider, authEntry) } catch {} }
-
-        for (const [key, value] of Object.entries(env)) {
-          process.env[key] = value 
-          
-          // Injeksi Header Cerdas Berdasarkan Provider
-          if (prov === "anthropic") {
-            output.headers["x-api-key"] = value
-            output.headers["anthropic-version"] = "2023-06-01"
-          } else if (prov === "google" || prov === "gemini") {
-            output.headers["x-goog-api-key"] = value
-          } else if (prov === "azure-openai") {
-            output.headers["api-key"] = value
+          if (sessionID) {
+            setSessionState(sessionID, PluginState.STREAMING)
           } else {
-            // Default Bearer Header (OpenAI, Groq, DeepSeek, OpenRouter, dll)
-            if (key.toUpperCase().includes("API_KEY") || key.toUpperCase().includes("TOKEN")) {
-              output.headers["Authorization"] = `Bearer ${value}`
+            setDefaultState(PluginState.STREAMING)
+          }
+
+          const requestedProvider = (input as any)?.model?.providerID || (input as any)?.provider?.id
+          let account = getManagedAccount(sessionID, requestedProvider)
+
+          if (!account) return
+
+          // 🚨 AGGRESSIVE AUTOPILOT (Retry loop detection)
+          const rescued = manager.trackRequestAndFix(requestedProvider || account.provider, account.id)
+          if (rescued && rescued.id !== account.id) {
+            const switched = manager.switchToAccount(rescued.id, sessionID)
+            if (switched.account) {
+              await log("info", `🔄 Autopilot: Deteksi retry loop, memutar kunci ke ${rescued.name}`)
+              account = switched.account
             }
           }
-        }
-      } catch (err) {}
-    },
+
+          const env = resolveAccountEnv(account)
+          const prov = account.provider.toLowerCase()
+
+          const authEntry = account.rawEntry ?? buildAuthJsonEntry(account)
+          if (authEntry) { try { overwriteAuthJsonProvider(account.provider, authEntry) } catch {} }
+
+          for (const [key, value] of Object.entries(env)) {
+            process.env[key] = value 
+            
+            // Injeksi Header Cerdas Berdasarkan Provider
+            if (prov === "anthropic") {
+              output.headers["x-api-key"] = value
+              output.headers["anthropic-version"] = "2023-06-01"
+            } else if (prov === "google" || prov === "gemini") {
+              output.headers["x-goog-api-key"] = value
+            } else if (prov === "azure-openai") {
+              output.headers["api-key"] = value
+            } else {
+              // Default Bearer Header (OpenAI, Groq, DeepSeek, OpenRouter, dll)
+              if (key.toUpperCase().includes("API_KEY") || key.toUpperCase().includes("TOKEN")) {
+                output.headers["Authorization"] = `Bearer ${value}`
+              }
+            }
+          }
+        } catch (err) {}
+      },
 
     // ─── Deteksi rate limit (Failsafe) ─────────────
     event: async ({ event }) => {
-      lastActivity = Date.now() // Reset activity timer on ANY event (Heartbeat)
+      const sessionID = getEventSessionID(event)
+      const providerHint = getProviderHint(event)
+      if (sessionID) {
+        touchSessionActivity(sessionID)
+        manager.getOrAssignAccountForSession(sessionID, providerHint)
+      } else {
+        touchDefaultActivity()
+      }
       persistDebug("any.event", event, DEBUG_LAST_EVENT)
       persistEventType((event as any)?.type)
       persistHookInvoke("event", { type: (event as any)?.type, sessionID: (event as any)?.properties?.sessionID })
       
       const properties = (event as any)?.properties
-      if (properties?.sessionID) lastSessionID = properties.sessionID
       
       // 🏥 Deterministic State Transition
       if (event?.type === "session.status") {
         const s = properties?.status
         persistDebug("session.status", event, DEBUG_LAST_STATUS)
         persistHistory(event, DEBUG_STATUS_HISTORY, 100)
-        if (s?.type === "busy") currentState = PluginState.STREAMING
-        if (s?.type === "idle") currentState = PluginState.IDLE
-        debugLog(`🏥 State Transition: ${currentState} | Session: ${lastSessionID}`)
+        if (sessionID && s?.type === "busy") setSessionState(sessionID, PluginState.STREAMING)
+        if (sessionID && s?.type === "idle") setSessionState(sessionID, PluginState.IDLE)
+        debugLog(`🏥 State Transition: ${sessionID ? getSessionState(sessionID).state : defaultPluginState} | Session: ${sessionID ?? "none"}`)
       }
 
       if (event?.type === "session.error") {
@@ -543,7 +639,7 @@ export const MultiAccountPlugin: Plugin = async ({ client }) => {
         persistHistory(event, DEBUG_ERROR_HISTORY, 100)
       }
 
-      await onPossibleError(event, "event")
+      await onPossibleError(event, "event", sessionID)
     },
 
     tool: {

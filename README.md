@@ -93,3 +93,89 @@ This script will:
 - Create a default template if `accounts.json` is not found.
 
 Make sure to run this script whenever the structure of `accounts.json` changes.
+
+## 📖 Usage
+
+This plugin provides custom tools that you can use directly in OpenCode:
+
+- **`account_status`** — Check the status of all configured accounts (active, rate-limited, cooldown)
+- **`account_list`** — View a list of all configured accounts with their priorities
+- **`account_switch`** — Manually switch to a specific account by ID
+- **`account_config_path`** — View the path to the accounts configuration file
+
+### Example Usage
+
+```
+/account_status
+/account_list
+/account_switch <account-id>
+/account_config_path
+```
+
+## ⚙️ Configuration
+
+The plugin uses an `accounts.json` configuration file to manage your API accounts.
+
+### Configuration File Location
+
+| OS | Path |
+|----|------|
+| Linux / macOS | `~/.config/opencode/multi-account/accounts.json` |
+| Windows | `%USERPROFILE%\.config\opencode\multi-account\accounts.json` |
+
+### accounts.json Format
+
+```json
+{
+  "accounts": [
+    {
+      "id": "anthropic-p1",
+      "name": "Anthropic Primary",
+      "provider": "anthropic",
+      "apiKey": "sk-ant-...",
+      "priority": 1,
+      "cooldownPeriod": 300000
+    },
+    {
+      "id": "anthropic-p2",
+      "name": "Anthropic Secondary",
+      "provider": "anthropic",
+      "apiKey": "sk-ant-...",
+      "priority": 2,
+      "cooldownPeriod": 300000
+    },
+    {
+      "id": "openai-p1",
+      "name": "OpenAI Primary",
+      "provider": "openai",
+      "apiKey": "sk-...",
+      "priority": 1,
+      "cooldownPeriod": 300000
+    }
+  ]
+}
+```
+
+### Configuration Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | ✅ | Unique identifier for the account (e.g., `anthropic-p1`) |
+| `name` | ✅ | Human-readable name for the account |
+| `provider` | ✅ | Provider name (e.g., `anthropic`, `openai`, `google`) |
+| `apiKey` | ✅ | Your API key for this provider |
+| `priority` | ✅ | Priority level (1 = highest, higher numbers = lower priority) |
+| `cooldownPeriod` | ✅ | Cooldown time in milliseconds after rate limit (e.g., `300000` = 5 minutes) |
+| `baseUrl` | ❌ | Optional custom base URL for the provider API |
+
+### Provider Support
+
+The plugin supports 35+ providers including:
+- **Anthropic** (Claude)
+- **OpenAI** (GPT-4, GPT-3.5)
+- **Google** (Gemini)
+- **Groq**
+- **DeepSeek**
+- **OpenRouter**
+- **xAI** (Grok)
+- And many more supported by OpenCode
