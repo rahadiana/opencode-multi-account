@@ -148,11 +148,11 @@ export function overwriteAuthJsonProvider(provider: string, rawEntry: unknown): 
     const raw = fs.readFileSync(activePath, "utf8")
     const parsed = parseJson<AuthJsonMap>(raw)
     if (typeof parsed === "object" && parsed !== null) {
-      // 🚨 PERFECT FORMAT FIX: Web UI butuh objek { type, access }, bukan string plain.
+      // opencode expects { type, key }, not { type, access }.
       if (typeof rawEntry === "string") {
         parsed[provider] = {
-          type: "api_key",
-          access: rawEntry
+          type: "api",
+          key: rawEntry
         } as any
       } else {
         parsed[provider] = rawEntry as any

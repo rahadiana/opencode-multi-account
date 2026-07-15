@@ -1,6 +1,14 @@
 import type { Account, AccountCredentials, AuthType } from "./types.js"
 import { PROVIDER_ENV_VARS } from "./types.js"
 
+export function resolveValueRef(value: string): string {
+  if (typeof value === "string" && value.startsWith("env:")) {
+    const varName = value.slice(4)
+    return process.env[varName] ?? value
+  }
+  return value
+}
+
 function inferDefaultEnvVar(provider: string): string {
   const known = PROVIDER_ENV_VARS[provider]?.[0]
   if (known) return known
@@ -19,11 +27,12 @@ export function normalizeAccount(account: Account): { account: Account; changed:
 
   if (!account.credentials) {
     const env: Record<string, string> = {}
-    if (account.apiKey && account.envVarName) {
-      env[account.envVarName] = account.apiKey
-    } else if (account.apiKey) {
+    const resolvedApiKey = account.apiKey ? resolveValueRef(account.apiKey) : undefined
+    if (resolvedApiKey && account.envVarName) {
+      env[account.envVarName] = resolvedApiKey
+    } else if (resolvedApiKey) {
       const inferred = inferDefaultEnvVar(account.provider)
-      env[inferred] = account.apiKey
+      env[inferred] = resolvedApiKey
       changed = true
     }
 
@@ -47,16 +56,24 @@ export function normalizeAccount(account: Account): { account: Account; changed:
   return { account, changed }
 }
 
+function resolveEnvVars(env: Record<string, string>): Record<string, string> {
+  const resolved: Record<string, string> = {}
+  for (const [k, v] of Object.entries(env)) {
+    resolved[k] = resolveValueRef(v)
+  }
+  return resolved
+}
+
 export function resolveAccountEnv(account: Account): Record<string, string> {
-  if (account.credentials?.env) return account.credentials.env
+  if (account.credentials?.env) return resolveEnvVars(account.credentials.env)
 
   if (account.apiKey && account.envVarName) {
-    return { [account.envVarName]: account.apiKey }
+    return { [account.envVarName]: resolveValueRef(account.apiKey) }
   }
 
   if (account.apiKey) {
     const inferred = inferDefaultEnvVar(account.provider)
-    return { [inferred]: account.apiKey }
+    return { [inferred]: resolveValueRef(account.apiKey) }
   }
 
   return {}

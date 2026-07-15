@@ -54,6 +54,6 @@ export function buildAuthJsonEntry(account: Account): AuthJsonEntry | null {
   // Default: API key style
   return {
     type: "api",
-    access: primary,
+    key: primary,
   } as any
 }
