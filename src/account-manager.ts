@@ -445,16 +445,7 @@ export class AccountManager {
     }
 
     const providerScope = account?.provider
-    // DEBUG: Log provider scope and pool status
-    console.log(`[DEBUG handleRateLimit] accountId=${accountId}, providerScope=${providerScope}`)
-    if (providerScope) {
-      const pool = this.providerPools[providerScope] ?? []
-      console.log(`[DEBUG handleRateLimit] Pool for ${providerScope}: ${pool.length} accounts`)
-      for (const acc of pool) {
-        const state = this.state.accountStates[acc.id]
-        console.log(`[DEBUG handleRateLimit]   - ${acc.id}: state=${state?.status}, rateLimited=${state?.rateLimitUntil}`)
-      }
-    }
+    // DEBUG: Log provider scope and pool status (removed console.log — TUI pollution)
     const next = providerScope
       ? this.getNextAvailableAccount(accountId, providerScope)
       : this.getNextAvailableAccount(accountId)
@@ -707,7 +698,7 @@ export class AccountManager {
     const pool = this.providerPools[provider] ?? []
     for (const acc of pool) {
       if (!acc.rawEntry) continue
-      const logicalToken = (acc.rawEntry as any)?.access || (acc.rawEntry as any)?.apiKey
+      const logicalToken = (acc.rawEntry as any)?.key || (acc.rawEntry as any)?.access || (acc.rawEntry as any)?.apiKey
       if (logicalToken === secret) return acc
     }
     return null
@@ -740,14 +731,14 @@ export class AccountManager {
         if (!pool || pool.length === 0) continue
 
         const physicalEntry = authData[provider] as any
-        const physicalToken = physicalEntry?.access || physicalEntry?.apiKey
+        const physicalToken = physicalEntry?.key || physicalEntry?.access || physicalEntry?.apiKey
         if (!physicalToken) continue
 
         const physicalAccount = this._findAccountBySecret(provider, physicalToken)
         const best = this.getNextAvailableAccount(undefined, provider)
         if (!best || !best.rawEntry) continue
 
-        const logicalToken = (best.rawEntry as any)?.access || (best.rawEntry as any)?.apiKey
+        const logicalToken = (best.rawEntry as any)?.key || (best.rawEntry as any)?.access || (best.rawEntry as any)?.apiKey
         const isDifferent = physicalToken !== logicalToken
         
         const accState = physicalAccount ? this.state.accountStates[physicalAccount.id] : null
